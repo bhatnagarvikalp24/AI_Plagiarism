@@ -1,0 +1,12 @@
+.env
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+server.log
+streamlit.log
+nohup.out
+/tmp/
+tests/sample_pdfs/
+*.pdf

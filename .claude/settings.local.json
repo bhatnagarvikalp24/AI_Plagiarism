@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m py_compile config.py models/schemas.py utils/file_utils.py utils/report_generator.py services/pdf_processor.py services/text_chunker.py services/heuristic_analyzer.py services/llm_analyzer.py services/detection_engine.py api/routes.py main.py streamlit_app.py tests/test_api.py tests/generate_sample_pdf.py)",
+      "Bash(python -m py_compile /Users/vikalp.bhatnagar/Desktop/AI_Detection/utils/file_utils.py)",
+      "Bash(python -m venv venv)",
+      "Bash(python -m json.tool)",
+      "Bash(awk '{print $5, $9}')",
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -m json.tool)",
+      "Bash(lsof -ti:8501)",
+      "Bash(xargs ps *)",
+      "Bash(git init *)",
+      "Bash(git remote *)",
+      "Bash(git fetch *)",
+      "Bash(git add *)"
+    ]
+  }
+}

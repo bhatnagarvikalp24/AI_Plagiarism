@@ -1,0 +1,36 @@
+# --- Web framework ---
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9
+
+# --- Settings ---
+pydantic==2.7.1
+pydantic-settings==2.3.0
+
+# --- PDF processing ---
+PyMuPDF==1.24.5
+
+# --- OCR (optional — install system tesseract separately) ---
+pytesseract==0.3.10
+Pillow==10.3.0
+
+# --- NLP / Heuristics ---
+nltk==3.8.1
+
+# --- HTTP client (async) ---
+httpx==0.27.0
+
+# --- PDF report generation (bonus) ---
+reportlab==4.2.0
+
+# --- Streamlit UI (bonus) ---
+streamlit==1.35.0
+plotly==5.22.0
+pandas==2.2.2
+
+# --- Testing ---
+pytest==8.2.0
+pytest-asyncio==0.23.6
+
+# --- Dev utilities ---
+python-dotenv==1.0.1
