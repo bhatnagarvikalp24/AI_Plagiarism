@@ -4,7 +4,8 @@ import os
 import nltk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from api.routes import router
 from config import get_settings
@@ -59,6 +60,13 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(router, prefix="/api/v1", tags=["Detection"])
+
+    # Serve frontend
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+
+    @app.get("/", include_in_schema=False)
+    async def frontend():
+        return FileResponse("static/index.html")
 
     @app.on_event("startup")
     async def startup_event():

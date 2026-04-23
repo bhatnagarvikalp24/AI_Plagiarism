@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Book Detector</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3347;
+      --accent: #6c63ff;
+      --accent2: #a78bfa;
+      --green: #22c55e;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    header .logo { font-size: 1.5rem; }
+    header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+    header span { color: var(--accent2); }
+
+    /* ── Layout ── */
+    main { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    /* ── Upload card ── */
+    .upload-card {
+      background: var(--surface);
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 3rem 2rem;
+      text-align: center;
+      transition: border-color .2s;
+      cursor: pointer;
+    }
+    .upload-card:hover, .upload-card.drag { border-color: var(--accent); }
+    .upload-card .icon { font-size: 3rem; margin-bottom: 1rem; }
+    .upload-card h2 { font-size: 1.2rem; margin-bottom: 0.5rem; }
+    .upload-card p { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    #fileInput { display: none; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 8px;
+      padding: 0.65rem 1.4rem; font-size: 0.95rem; font-weight: 600;
+      cursor: pointer; transition: opacity .15s;
+    }
+    .btn:hover { opacity: 0.88; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-outline {
+      background: transparent; border: 1px solid var(--border); color: var(--text);
+    }
+
+    #fileName {
+      margin-top: 1rem; font-size: 0.85rem; color: var(--accent2);
+      display: none;
+    }
+
+    /* ── Progress ── */
+    #progress {
+      display: none; margin-top: 2rem;
+      background: var(--surface); border-radius: var(--radius);
+      padding: 1.5rem; text-align: center;
+    }
+    .spinner {
+      width: 48px; height: 48px; border: 4px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin .8s linear infinite; margin: 0 auto 1rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #progressText { color: var(--muted); font-size: 0.9rem; }
+
+    /* ── Results ── */
+    #results { display: none; margin-top: 2rem; }
+
+    .kpi-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem; margin-bottom: 1.5rem;
+    }
+    .kpi {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.2rem 1.5rem;
+    }
+    .kpi label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .kpi .value { font-size: 2rem; font-weight: 800; margin-top: 0.3rem; line-height: 1; }
+    .kpi .sub { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+
+    .section {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .section h3 {
+      font-size: 1rem; font-weight: 700; margin-bottom: 1.2rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+
+    /* Gauge wrapper */
+    .gauge-wrap { max-width: 320px; margin: 0 auto; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th { color: var(--muted); font-weight: 600; padding: 0.6rem 0.8rem;
+         text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 0.55rem 0.8rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+
+    .badge {
+      display: inline-block; padding: 0.2rem 0.6rem;
+      border-radius: 9999px; font-size: 0.75rem; font-weight: 600;
+    }
+    .badge-ai    { background: rgba(239,68,68,.15); color: var(--red); }
+    .badge-maybe { background: rgba(245,158,11,.15); color: var(--yellow); }
+    .badge-human { background: rgba(34,197,94,.15);  color: var(--green); }
+    .badge-unk   { background: rgba(148,163,184,.15); color: var(--muted); }
+
+    .score-bar-wrap { display: flex; align-items: center; gap: 0.5rem; min-width: 100px; }
+    .score-bar { height: 6px; border-radius: 9999px; flex: 1; background: var(--border); }
+    .score-bar-fill { height: 100%; border-radius: 9999px; }
+
+    .risk-item {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-left: 3px solid var(--red); border-radius: 8px;
+      padding: 1rem; margin-bottom: 0.75rem;
+    }
+    .risk-item .meta { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.4rem; }
+    .risk-item .snippet { font-size: 0.85rem; line-height: 1.6; color: var(--text); }
+
+    .actions { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+
+    .error-box {
+      background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3);
+      border-radius: var(--radius); padding: 1.2rem 1.5rem;
+      color: var(--red); margin-top: 1rem; display: none;
+    }
+
+    /* responsive */
+    @media (max-width: 600px) {
+      main { padding: 1rem; }
+      .kpi .value { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="logo">🔍</span>
+  <h1>AI Book <span>Detector</span></h1>
+</header>
+
+<main>
+
+  <!-- Upload -->
+  <div class="upload-card" id="dropZone">
+    <div class="icon">📄</div>
+    <h2>Upload a PDF Book</h2>
+    <p>Drag & drop or click to browse — up to 50 MB</p>
+    <button class="btn" onclick="document.getElementById('fileInput').click()">
+      Choose PDF
+    </button>
+    <input type="file" id="fileInput" accept=".pdf" />
+    <div id="fileName"></div>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- Progress -->
+  <div id="progress">
+    <div class="spinner"></div>
+    <p id="progressText">Extracting text and analysing chunks…</p>
+  </div>
+
+  <!-- Results -->
+  <div id="results">
+    <div class="actions">
+      <button class="btn btn-outline" onclick="resetUI()">← Analyse Another</button>
+      <button class="btn btn-outline" id="downloadBtn">⬇ Download PDF Report</button>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-grid">
+      <div class="kpi">
+        <label>Overall AI Likelihood</label>
+        <div class="value" id="kpiPct">—</div>
+        <div class="sub" id="kpiVerdict">—</div>
+      </div>
+      <div class="kpi">
+        <label>Confidence</label>
+        <div class="value" id="kpiConf">—</div>
+        <div class="sub">Based on score variance</div>
+      </div>
+      <div class="kpi">
+        <label>Chunks Analysed</label>
+        <div class="value" id="kpiChunks">—</div>
+        <div class="sub" id="kpiPages">—</div>
+      </div>
+      <div class="kpi">
+        <label>High-Risk Sections</label>
+        <div class="value" id="kpiRisk">—</div>
+        <div class="sub">Score ≥ 0.70</div>
+      </div>
+    </div>
+
+    <!-- Gauge -->
+    <div class="section">
+      <h3>🎯 AI Likelihood Gauge</h3>
+      <div class="gauge-wrap">
+        <canvas id="gaugeChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Bar chart -->
+    <div class="section">
+      <h3>📊 Chunk-Level AI Scores</h3>
+      <canvas id="barChart" height="100"></canvas>
+    </div>
+
+    <!-- High-risk sections -->
+    <div class="section" id="riskSection">
+      <h3>🚨 High-Risk Sections</h3>
+      <div id="riskList"></div>
+    </div>
+
+    <!-- Chunk table -->
+    <div class="section">
+      <h3>📋 Full Chunk Breakdown</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Page</th><th>AI Score</th>
+              <th>LLM</th><th>Heuristic</th><th>Label</th><th>Snippet</th>
+            </tr>
+          </thead>
+          <tbody id="chunkTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  const API = '/api/v1';
+  let lastFile = null;
+  let gaugeChart = null;
+  let barChart = null;
+
+  // ── Drag & drop ──
+  const dropZone = document.getElementById('dropZone');
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault(); dropZone.classList.remove('drag');
+    const f = e.dataTransfer.files[0];
+    if (f) setFile(f);
+  });
+
+  document.getElementById('fileInput').addEventListener('change', e => {
+    if (e.target.files[0]) setFile(e.target.files[0]);
+  });
+
+  function setFile(f) {
+    if (!f.name.endsWith('.pdf')) { showError('Only PDF files are supported.'); return; }
+    if (f.size > 50 * 1024 * 1024) { showError('File exceeds 50 MB limit.'); return; }
+    lastFile = f;
+    const fn = document.getElementById('fileName');
+    fn.textContent = `📎 ${f.name} (${(f.size/1024).toFixed(0)} KB)`;
+    fn.style.display = 'block';
+    hideError();
+    analyse(f);
+  }
+
+  async function analyse(file) {
+    showProgress('Uploading and extracting text…');
+    hideError();
+    document.getElementById('results').style.display = 'none';
+
+    const fd = new FormData();
+    fd.append('file', file);
+
+    try {
+      setProgressText('Analysing chunks with GPT-4o… (this takes ~1–3 min for large books)');
+      const res = await fetch(`${API}/analyze-book`, { method: 'POST', body: fd });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      hideProgress();
+      renderResults(data, file.name);
+    } catch (e) {
+      hideProgress();
+      showError(e.message);
+    }
+  }
+
+  // ── Render ──
+  function renderResults(d, filename) {
+    const pct = d.overall_ai_percentage;
+    const colour = pct >= 70 ? '#ef4444' : pct >= 40 ? '#f59e0b' : '#22c55e';
+    const verdict = pct >= 70 ? 'Likely AI-Generated' : pct >= 40 ? 'Mixed / Uncertain' : 'Likely Human-Written';
+
+    document.getElementById('kpiPct').textContent = pct.toFixed(1) + '%';
+    document.getElementById('kpiPct').style.color = colour;
+    document.getElementById('kpiVerdict').textContent = verdict;
+    document.getElementById('kpiConf').textContent = d.confidence;
+    document.getElementById('kpiConf').style.color =
+      d.confidence === 'High' ? '#22c55e' : d.confidence === 'Medium' ? '#f59e0b' : '#ef4444';
+    document.getElementById('kpiChunks').textContent = d.processing_stats.total_chunks;
+    document.getElementById('kpiPages').textContent = `${d.processing_stats.total_pages} pages · ${d.processing_stats.total_words.toLocaleString()} words`;
+    document.getElementById('kpiRisk').textContent = d.high_risk_sections.length;
+
+    // Download report button
+    document.getElementById('downloadBtn').onclick = () => downloadReport(filename);
+
+    drawGauge(pct, colour);
+    drawBar(d.chunks);
+    renderRisk(d.high_risk_sections);
+    renderTable(d.chunks);
+
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function drawGauge(pct, colour) {
+    if (gaugeChart) { gaugeChart.destroy(); gaugeChart = null; }
+    const ctx = document.getElementById('gaugeChart').getContext('2d');
+    gaugeChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        datasets: [{
+          data: [pct, 100 - pct],
+          backgroundColor: [colour, '#2e3347'],
+          borderWidth: 0,
+          circumference: 180,
+          rotation: 270,
+        }]
+      },
+      options: {
+        cutout: '75%',
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: false },
+        },
+      },
+      plugins: [{
+        id: 'gaugeLabel',
+        afterDraw(chart) {
+          const { ctx, chartArea: { top, width, height } } = chart;
+          ctx.save();
+          ctx.font = 'bold 2rem Inter, sans-serif';
+          ctx.fillStyle = colour;
+          ctx.textAlign = 'center';
+          ctx.fillText(pct.toFixed(1) + '%', width / 2, top + height * 0.78);
+          ctx.font = '0.8rem Inter, sans-serif';
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillText('AI Generated', width / 2, top + height * 0.93);
+          ctx.restore();
+        }
+      }]
+    });
+  }
+
+  function drawBar(chunks) {
+    if (barChart) { barChart.destroy(); barChart = null; }
+    const ctx = document.getElementById('barChart').getContext('2d');
+    const labels = chunks.map(c => `C${c.chunk_id}`);
+    const scores = chunks.map(c => c.ai_score);
+    const colours = scores.map(s => s >= 0.70 ? '#ef4444' : s >= 0.50 ? '#f59e0b' : '#22c55e');
+
+    barChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'AI Score',
+          data: scores,
+          backgroundColor: colours,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        scales: {
+          y: {
+            min: 0, max: 1,
+            ticks: { color: '#94a3b8', stepSize: 0.2 },
+            grid: { color: '#2e3347' },
+          },
+          x: {
+            ticks: { color: '#94a3b8', font: { size: 10 }, maxTicksLimit: 30 },
+            grid: { display: false },
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: (items) => {
+                const c = chunks[items[0].dataIndex];
+                return `Chunk ${c.chunk_id} — Page ${c.page}`;
+              },
+              label: (item) => {
+                const c = chunks[item.dataIndex];
+                return [
+                  ` AI Score: ${(c.ai_score * 100).toFixed(1)}%`,
+                  ` LLM: ${c.llm_score != null ? (c.llm_score * 100).toFixed(0) + '%' : 'N/A'}`,
+                  ` Heuristic: ${(c.heuristic_score * 100).toFixed(0)}%`,
+                  ` ${c.label}`,
+                ];
+              }
+            }
+          },
+          annotation: {
+            annotations: {
+              threshold: {
+                type: 'line', yMin: 0.7, yMax: 0.7,
+                borderColor: '#ef4444', borderWidth: 1, borderDash: [4, 4],
+              }
+            }
+          }
+        },
+        animation: { duration: 600 },
+      }
+    });
+  }
+
+  function renderRisk(sections) {
+    const el = document.getElementById('riskList');
+    const sec = document.getElementById('riskSection');
+    if (!sections.length) {
+      sec.style.display = 'none'; return;
+    }
+    sec.style.display = 'block';
+    el.innerHTML = sections.map(s => `
+      <div class="risk-item">
+        <div class="meta">Page ${s.page} &nbsp;·&nbsp; Chunk ${s.chunk_id} &nbsp;·&nbsp;
+          <strong style="color:#ef4444">Score: ${(s.ai_score*100).toFixed(1)}%</strong>
+        </div>
+        <div class="snippet">${escHtml(s.text_snippet)}</div>
+      </div>`).join('');
+  }
+
+  function renderTable(chunks) {
+    document.getElementById('chunkTable').innerHTML = chunks.map(c => {
+      const bar = `<div class="score-bar-wrap">
+        <div class="score-bar"><div class="score-bar-fill"
+          style="width:${(c.ai_score*100).toFixed(0)}%;
+          background:${c.ai_score>=.7?'#ef4444':c.ai_score>=.5?'#f59e0b':'#22c55e'}">
+        </div></div>
+        <span style="font-size:.8rem;min-width:36px">${(c.ai_score*100).toFixed(0)}%</span>
+      </div>`;
+      const badge = labelBadge(c.label);
+      return `<tr>
+        <td>${c.chunk_id}</td>
+        <td>${c.page}</td>
+        <td>${bar}</td>
+        <td>${c.llm_score != null ? (c.llm_score*100).toFixed(0)+'%' : '—'}</td>
+        <td>${(c.heuristic_score*100).toFixed(0)}%</td>
+        <td>${badge}</td>
+        <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#94a3b8"
+            title="${escHtml(c.text_snippet)}">${escHtml(c.text_snippet.substring(0,80))}…</td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function downloadReport(filename) {
+    if (!lastFile) return;
+    const btn = document.getElementById('downloadBtn');
+    btn.disabled = true; btn.textContent = '⏳ Generating…';
+    try {
+      const fd = new FormData(); fd.append('file', lastFile);
+      const res = await fetch(`${API}/analyze-book/report`, { method: 'POST', body: fd });
+      if (!res.ok) throw new Error('Report generation failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'ai_detection_report.pdf'; a.click();
+      URL.revokeObjectURL(url);
+    } catch(e) { showError(e.message); }
+    btn.disabled = false; btn.textContent = '⬇ Download PDF Report';
+  }
+
+  // ── Helpers ──
+  function labelBadge(label) {
+    const map = {
+      'Likely AI':    ['badge-ai',    '🔴 Likely AI'],
+      'Possibly AI':  ['badge-maybe', '🟡 Possibly AI'],
+      'Likely Human': ['badge-human', '🟢 Likely Human'],
+      'Uncertain':    ['badge-unk',   '⚪ Uncertain'],
+    };
+    const [cls, text] = map[label] || ['badge-unk', label];
+    return `<span class="badge ${cls}">${text}</span>`;
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function showProgress(msg) {
+    document.getElementById('progress').style.display = 'block';
+    document.getElementById('progressText').textContent = msg;
+  }
+  function setProgressText(msg) {
+    document.getElementById('progressText').textContent = msg;
+  }
+  function hideProgress() { document.getElementById('progress').style.display = 'none'; }
+  function showError(msg) {
+    const el = document.getElementById('errorBox');
+    el.textContent = '⚠ ' + msg; el.style.display = 'block';
+  }
+  function hideError() { document.getElementById('errorBox').style.display = 'none'; }
+
+  function resetUI() {
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('fileName').style.display = 'none';
+    document.getElementById('fileInput').value = '';
+    lastFile = null; hideError();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
+</body>
+</html>
