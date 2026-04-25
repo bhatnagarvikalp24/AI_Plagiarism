@@ -73,7 +73,13 @@ def create_app() -> FastAPI:
         logger.info("Starting AI Detection API...")
         os.makedirs(settings.upload_dir, exist_ok=True)
         _download_nltk_data()
-        logger.info("Startup complete. LLM provider: %s", settings.llm_provider)
+        # Warm up transformer models in background so first request is fast
+        if settings.use_local_models:
+            import asyncio
+            from services.classifier import warmup
+            loop = asyncio.get_event_loop()
+            loop.run_in_executor(None, warmup)
+        logger.info("Startup complete. LLM=%s | local_models=%s", settings.llm_provider, settings.use_local_models)
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request, exc):
