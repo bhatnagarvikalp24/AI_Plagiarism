@@ -254,7 +254,7 @@
           <thead>
             <tr>
               <th>#</th><th>Page</th><th>AI Score</th>
-              <th>GPT-2</th><th>Vocab</th><th>LLM</th><th>Heuristic</th><th>Label</th><th>Snippet</th>
+              <th>LLM</th><th>Vocab</th><th>Burstiness</th><th>Repetition</th><th>Diversity</th><th>Label</th><th>Snippet</th>
             </tr>
           </thead>
           <tbody id="chunkTable"></tbody>
@@ -429,8 +429,7 @@
                 const c = chunks[item.dataIndex];
                 return [
                   ` Final: ${(c.ai_score * 100).toFixed(1)}%`,
-                  ` GPT-2: ${c.gpt2_score != null ? (c.gpt2_score*100).toFixed(0)+'%' : 'N/A'}`,
-                  ` Vocab: ${c.vocab_score != null ? (c.vocab_score*100).toFixed(0)+'%' : 'N/A'}`,
+                  ` Vocab sig: ${c.vocab_score != null ? (c.vocab_score*100).toFixed(0)+'%' : 'N/A'}`,
                   ` LLM: ${c.llm_score != null ? (c.llm_score * 100).toFixed(0) + '%' : 'N/A'}`,
                   ` Heuristic: ${(c.heuristic_score * 100).toFixed(0)}%`,
                   ` ${c.label}`,
@@ -479,16 +478,18 @@
       </div>`;
       const badge = labelBadge(c.label);
       const lcBadge = c.low_confidence ? ' <span style="font-size:.7rem;color:#f59e0b" title="Chunk too short for reliable scoring">⚠</span>' : '';
+      const h = c.heuristic_details;
       return `<tr>
         <td>${c.chunk_id}${lcBadge}</td>
         <td>${c.page}</td>
         <td>${bar}</td>
-        <td>${c.gpt2_score != null ? (c.gpt2_score*100).toFixed(0)+'%' : '—'}</td>
+        <td>${c.llm_score  != null ? (c.llm_score*100).toFixed(0)+'%'  : '—'}</td>
         <td>${c.vocab_score != null ? (c.vocab_score*100).toFixed(0)+'%' : '—'}</td>
-        <td>${c.llm_score != null ? (c.llm_score*100).toFixed(0)+'%' : '—'}</td>
-        <td>${(c.heuristic_score*100).toFixed(0)}%</td>
+        <td>${h ? (h.burstiness_score*100).toFixed(0)+'%' : '—'}</td>
+        <td>${h ? (h.repetition_score*100).toFixed(0)+'%' : '—'}</td>
+        <td>${h ? (h.lexical_diversity_score*100).toFixed(0)+'%' : '—'}</td>
         <td>${badge}</td>
-        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#94a3b8"
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#94a3b8"
             title="${escHtml(c.text_snippet)}">${escHtml(c.text_snippet.substring(0,70))}…</td>
       </tr>`;
     }).join('');
